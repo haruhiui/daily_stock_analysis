@@ -28,6 +28,9 @@ concurrency:
   group: stock-analysis
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   analyze:
     runs-on: ubuntu-latest
@@ -43,7 +46,7 @@ jobs:
       
       - name: 检出代码
         uses: actions/checkout@v5
-      
+
       - name: 设置 Python 环境
         uses: actions/setup-python@v6
         with:
@@ -54,6 +57,18 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
+
+      - name: 安装可选外部工具
+        id: external_tool_setup
+        if: vars.EXTERNAL_TOOL_ENABLED == 'true'
+        continue-on-error: true
+        uses: ./.github/actions/setup-external-tool
+        with:
+          repository: ${{ vars.EXTERNAL_TOOL_REPOSITORY }}
+          ref: ${{ vars.EXTERNAL_TOOL_REF }}
+          token: ${{ secrets.EXTERNAL_TOOL_REPO_TOKEN }}
+          package-path: ${{ secrets.EXTERNAL_TOOL_PACKAGE_PATH }}
+          import-module: ${{ secrets.EXTERNAL_TOOL_ADAPTER_MODULE }}
       
       - name: 创建必要目录
         run: |
@@ -389,10 +404,20 @@ jobs:
           REPORT_TYPE: ${{ vars.REPORT_TYPE || secrets.REPORT_TYPE || 'simple' }}
           REPORT_LANGUAGE: ${{ vars.REPORT_LANGUAGE || secrets.REPORT_LANGUAGE || '' }}
           REPORT_SHOW_LLM_MODEL: ${{ vars.REPORT_SHOW_LLM_MODEL || secrets.REPORT_SHOW_LLM_MODEL || 'true' }}
-          SINGLE_STOCK_NOTIFY: ${{ vars.SINGLE_STOCK_NOTIFY || secrets.SINGLE_STOCK_NOTIFY || 'false' }}
+          SINGLE_STOCK_NOTIFY: ${{ vars.EXTERNAL_TOOL_ENABLED == 'true' && 'false' || vars.SINGLE_STOCK_NOTIFY || secrets.SINGLE_STOCK_NOTIFY || 'false' }}
           MARKET_REVIEW_ENABLED: ${{ vars.MARKET_REVIEW_ENABLED || secrets.MARKET_REVIEW_ENABLED || 'true' }}
           ANALYSIS_DELAY: ${{ vars.ANALYSIS_DELAY || secrets.ANALYSIS_DELAY || '0' }}
           TRADING_DAY_CHECK_ENABLED: ${{ vars.TRADING_DAY_CHECK_ENABLED || secrets.TRADING_DAY_CHECK_ENABLED || 'true' }}
+
+          # ==========================================
+          # 可选外部工具
+          # ==========================================
+          EXTERNAL_TOOL_ENABLED: ${{ vars.EXTERNAL_TOOL_ENABLED || 'false' }}
+          EXTERNAL_TOOL_DATA_DIR: ./data/external-tool
+          EXTERNAL_TOOL_ADAPTER_MODULE: ${{ secrets.EXTERNAL_TOOL_ADAPTER_MODULE }}
+          EXTERNAL_TOOL_AUTOMATION_CONFIG: ./.external/external-tool/${{ secrets.EXTERNAL_TOOL_PACKAGE_PATH }}/automation/daily-report.yaml
+          EXTERNAL_TOOL_CONTRACT_MIN: '1'
+          EXTERNAL_TOOL_CONTRACT_MAX: '1'
           
           # ==========================================
           # 系统配置

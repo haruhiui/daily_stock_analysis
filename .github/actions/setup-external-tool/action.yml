@@ -1,0 +1,71 @@
+name: Setup External Tool
+description: 从私有仓库的固定 commit 安装可选外部工具
+
+inputs:
+  repository:
+    description: 外部工具仓库的 owner/repository 标识
+    required: true
+  ref:
+    description: 已验证的完整 40 位 commit SHA
+    required: true
+  token:
+    description: 仅有目标仓库 Contents read 权限的 Token
+    required: true
+  package-path:
+    description: 外部工具在仓库中的 Python 包相对路径
+    required: true
+  import-module:
+    description: 安装后用于健康检查的 Python 模块
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: 校验固定版本
+      shell: bash
+      env:
+        EXTERNAL_TOOL_REF: ${{ inputs.ref }}
+        EXTERNAL_TOOL_PACKAGE_PATH: ${{ inputs.package-path }}
+        EXTERNAL_TOOL_IMPORT_MODULE: ${{ inputs.import-module }}
+      run: |
+        if ! [[ "$EXTERNAL_TOOL_REF" =~ ^[0-9a-fA-F]{40}$ ]]; then
+          echo "::error::外部工具版本必须是完整的 40 位 commit SHA"
+          exit 1
+        fi
+        if ! [[ "$EXTERNAL_TOOL_PACKAGE_PATH" =~ ^[A-Za-z0-9._/-]+$ ]] ||
+          [[ "/$EXTERNAL_TOOL_PACKAGE_PATH/" == *"/../"* ]] ||
+          [[ "$EXTERNAL_TOOL_PACKAGE_PATH" == /* ]]; then
+          echo "::error::外部工具包路径必须是安全的仓库相对路径"
+          exit 1
+        fi
+        if ! [[ "$EXTERNAL_TOOL_IMPORT_MODULE" =~ ^[A-Za-z_][A-Za-z0-9_.]*$ ]]; then
+          echo "::error::外部工具模块名称格式无效"
+          exit 1
+        fi
+
+    - name: 检出私有外部工具
+      uses: actions/checkout@v5
+      with:
+        repository: ${{ inputs.repository }}
+        ref: ${{ inputs.ref }}
+        token: ${{ inputs.token }}
+        path: .external/external-tool
+        persist-credentials: false
+        sparse-checkout: |
+          /${{ inputs.package-path }}/
+        sparse-checkout-cone-mode: false
+
+    - name: 校验 checkout 并安装引擎
+      shell: bash
+      env:
+        EXTERNAL_TOOL_REF: ${{ inputs.ref }}
+        EXTERNAL_TOOL_PACKAGE_PATH: ${{ inputs.package-path }}
+        EXTERNAL_TOOL_IMPORT_MODULE: ${{ inputs.import-module }}
+      run: |
+        ACTUAL_REF="$(git -C .external/external-tool rev-parse HEAD)"
+        if [ "${ACTUAL_REF,,}" != "${EXTERNAL_TOOL_REF,,}" ]; then
+          echo "::error::外部工具 checkout 与固定 commit 不一致"
+          exit 1
+        fi
+        python -m pip install --no-cache-dir "./.external/external-tool/$EXTERNAL_TOOL_PACKAGE_PATH"
+        python -c "import importlib, os; module = importlib.import_module(os.environ['EXTERNAL_TOOL_IMPORT_MODULE']); print(module.get_status())"

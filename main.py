@@ -660,6 +660,20 @@ def _save_reused_market_review_report(
         logger.warning("复用大盘上下文保存大盘复盘报告失败: %s", exc)
 
 
+def _should_merge_notification(config: Config, args: argparse.Namespace) -> bool:
+    """Resolve native and ExternalTool merged-delivery modes in one place."""
+
+    if bool(getattr(config, 'single_stock_notify', False)):
+        return False
+    if bool(getattr(config, 'external_tool_enabled', False)):
+        return True
+    return bool(
+        getattr(config, 'merge_email_notification', False)
+        and getattr(config, 'market_review_enabled', False)
+        and not getattr(args, 'no_market_review', False)
+    )
+
+
 def run_full_analysis(
     config: Config,
     args: argparse.Namespace,
@@ -704,12 +718,7 @@ def run_full_analysis(
             config.single_stock_notify = True
 
         # Issue #190: 个股与大盘复盘合并推送
-        merge_notification = (
-            getattr(config, 'merge_email_notification', False)
-            and config.market_review_enabled
-            and not getattr(args, 'no_market_review', False)
-            and not config.single_stock_notify
-        )
+        merge_notification = _should_merge_notification(config, args)
 
         # 创建调度器
         save_context_snapshot = None
@@ -910,7 +919,9 @@ def run_full_analysis(
                 )
                 parts.append(f"# 🚀 个股决策仪表盘\n\n{dashboard_content}")
             if parts:
-                combined_content = "\n\n---\n\n".join(parts)
+                from src.extensions.external_tool.report_bridge import compose_daily_email
+
+                combined_content = compose_daily_email(parts, config=config)
                 if pipeline.notifier.is_available():
                     if pipeline.notifier.send(combined_content, email_send_to_all=True, route_type="report"):
                         logger.info("已合并推送（个股+大盘复盘）")
