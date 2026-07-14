@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [文档] 补充 macOS 未签名、未公证 DMG 被 Gatekeeper 拦截时的架构选择、安全排查与官方安装包临时放行步骤。
 <!-- 新条目格式：- [类型] 描述（类型取值：新功能/改进/修复/文档/测试/chore）-->
 <!-- 每条独立一行追加到本段末尾，无需分类标题，合并时冲突最小 -->
+- [新功能] 新增默认关闭的 ExternalTool 隔离扩展、通用研究方法 API 和后台任务生命周期，缺少私有引擎时不影响 DSA 原有功能。
+- [新功能] 新增 ExternalTool 量化研究台，提供左对齐工具卡、Schema 驱动的通用方法表单、结构化结果和本地每日报告预览。
+- [新功能] 每日 Action 支持以只读 Token 检出 private ExternalTool 固定 commit，并复用 DSA 合并报告与 163 邮件发送；扩展失败时保留原生报告和脱敏 artifact。
 
 ## [3.26.0] - 2026-07-12
 
