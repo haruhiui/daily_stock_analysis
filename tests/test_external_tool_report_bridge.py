@@ -38,6 +38,39 @@ def test_report_bridge_groups_methods_other_sections_and_custom_markdown() -> No
     assert rendered.index("### 数据限制") < rendered.index("仅供研究，不构成投资建议")
 
 
+def test_report_bridge_renders_research_pool_and_provider_usage() -> None:
+    rendered = report_markdown(
+        {
+            "research_universe": {
+                "source": "automation_config",
+                "purpose": "screening_pool",
+                "count": 12,
+            },
+            "sections": [{"id": "method:sample", "title": "筛选结果", "markdown": "候选 2 个"}],
+            "data_access_usage": {
+                "scope": "daily_report_run",
+                "total_requests": 3,
+                "providers": [
+                    {
+                        "provider": "baostock",
+                        "measurement": "provider_request",
+                        "requests": 3,
+                        "operations": {"login": 1, "query_history_k_data_plus": 2},
+                        "daily_quota": {"used": 18, "limit": 40000, "remaining": 39982},
+                    }
+                ],
+            },
+        }
+    )
+
+    assert "研究筛选池：12 个标的" in rendered
+    assert "不会自动触发 DSA 深度分析" in rendered
+    assert "### 行情访问用量" in rendered
+    assert "| baostock | 3 | 渠道请求 | 18 | 40000 | 39982 |" in rendered
+    assert "query_history_k_data_plus 2" in rendered
+    assert rendered.index("### 筛选结果") < rendered.index("### 行情访问用量")
+
+
 def test_report_bridge_fails_open_for_invalid_report() -> None:
     rendered = report_markdown({"status": "failed"})
     assert "未返回有效报告" in rendered

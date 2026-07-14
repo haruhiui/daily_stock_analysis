@@ -34,7 +34,7 @@
 
 “研究方法”不写死任何具体方法。页面读取 `methods` API 返回的注册表和原始 JSON Schema，通用表单必须保留 Schema 属性名，不得把 `snake_case_parameter` 一类适配器参数自动改成 camelCase。新增普通方法只需在外部工具注册，不需要增加 DSA 路由或导航项。
 
-本地研究台从 DSA 的 `STOCK_LIST` 读取初始标的；用户可以为本次运行临时修改。每日报告预览可以只生成自定义 Markdown，也可以组合已注册研究方法。页面明确提示：本地预览和本地自选不会自动修改、提交或同步 ExternalTool 仓库中的 `automation/daily-report.yaml`。
+本地研究台可以从 DSA 的 `STOCK_LIST` 读取本次请求初始标的；ExternalTool 独立工作流和自动化可以使用自己维护的更大研究池做确定性筛选。`STOCK_LIST` 只控制 DSA 原生逐股深度分析，不要求覆盖 ExternalTool 研究池。筛选候选不会自动触发 DSA 分析或修改任何列表；`automation/daily-report.yaml` 是 Action 使用的独立版本化研究池快照。每日报告同时显示研究池数量以及各行情渠道的本次访问和可用日额度。
 
 DSA 原有 `/backtest` 仍表示 AI 建议的历史验证；研究台中的“量化策略回测”是 ExternalTool 的确定性策略回测，两者名称、API 和结果互不混用。
 

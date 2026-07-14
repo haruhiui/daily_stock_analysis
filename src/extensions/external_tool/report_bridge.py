@@ -24,6 +24,13 @@ def report_markdown(report: Dict[str, Any]) -> str:
     if not isinstance(sections, list):
         return "## 自定义研究\n\nExternalTool 未返回有效报告。"
     rendered = ["## 自定义研究"]
+    universe = report.get("research_universe")
+    if isinstance(universe, dict):
+        count = universe.get("count")
+        if isinstance(count, int):
+            rendered.append(
+                f"研究筛选池：{count} 个标的；候选结果不会自动触发 DSA 深度分析。"
+            )
     for section in _ordered_sections(sections):
         if not isinstance(section, dict):
             continue
@@ -35,6 +42,10 @@ def report_markdown(report: Dict[str, Any]) -> str:
             rendered.append(markdown)
     if len(rendered) == 1:
         rendered.append("暂无可展示的研究片段。")
+
+    usage_markdown = _data_access_usage_markdown(report.get("data_access_usage"))
+    if usage_markdown:
+        rendered.append(usage_markdown)
 
     metadata = []
     trade_date = str(report.get("trade_date") or "").strip()
@@ -151,6 +162,46 @@ def _ordered_sections(sections: list[Any]) -> list[Any]:
         return 1
 
     return [item for _, item in sorted(enumerate(sections), key=lambda pair: (group(pair[1]), pair[0]))]
+
+
+def _data_access_usage_markdown(value: Any) -> str:
+    if not isinstance(value, dict):
+        return ""
+    providers = value.get("providers")
+    if not isinstance(providers, list):
+        return ""
+    lines = [
+        "### 行情访问用量",
+        "",
+        "| 渠道 | 本次用量 | 计量口径 | 今日累计 | 日上限 | 剩余 |",
+        "| --- | ---: | --- | ---: | ---: | ---: |",
+    ]
+    labels = {
+        "provider_request": "渠道请求",
+        "client_call": "客户端调用",
+        "unavailable": "未提供计数",
+    }
+    details: list[str] = []
+    for item in providers:
+        if not isinstance(item, dict):
+            continue
+        quota = item.get("daily_quota") if isinstance(item.get("daily_quota"), dict) else {}
+        requests = item.get("requests")
+        measurement = str(item.get("measurement") or "unavailable")
+        lines.append(
+            f"| {item.get('provider', '-')} | {requests if isinstance(requests, int) else '未计数'} | "
+            f"{labels.get(measurement, measurement)} | {quota.get('used', '-')} | "
+            f"{quota.get('limit', '-')} | {quota.get('remaining', '-')} |"
+        )
+        operations = item.get("operations")
+        if isinstance(operations, dict) and operations:
+            detail = "，".join(f"{name} {count}" for name, count in operations.items())
+            details.append(f"- {item.get('provider', '-')} 本次明细：{detail}")
+    if len(lines) == 4:
+        return "### 行情访问用量\n\n本次没有可计数的外部行情访问。"
+    if details:
+        lines.extend(["", *details])
+    return "\n".join(lines)
 
 
 def _write_artifacts_safely(report: Dict[str, Any], output_dir: Path) -> bool:

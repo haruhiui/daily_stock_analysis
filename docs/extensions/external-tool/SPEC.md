@@ -215,20 +215,24 @@ DSA 现有 `/screening` 页面继续承载 AlphaSift；ExternalTool 研究方法
 
 ### 9.1 本地交互
 
-DSA 本地 UI 的当前自选列表是交互请求真源。调用支持批量标的的研究方法时，DSA 将规范化后的股票代码列表作为请求参数传给适配层。ExternalTool 不再要求用户在另一套 UI 重复维护列表。
+DSA 的 `STOCK_LIST` 和本次请求标的是 DSA 原生逐股 LLM 深度分析的真源，也可以作为 ExternalTool 研究方法的一次性输入，但不再被定义为 ExternalTool 全部研究范围的唯一真源。ExternalTool 可以维护独立且更大的研究池，用于确定性选股、筛选和回测；DSA 不读取其内部数据库表。
 
 ### 9.2 GitHub Actions
 
-GitHub Actions 使用 ExternalTool 仓库内版本化的 `automation/daily-report.yaml`。Runner 不读取用户电脑的 DSA `.env` 或 ExternalTool SQLite。
+GitHub Actions 同时保留两套显式范围：DSA `STOCK_LIST` 控制 DSA 原生深度分析，ExternalTool 仓库内版本化的 `automation/daily-report.yaml` 控制 ExternalTool 自动化研究池。Runner 不读取用户电脑的 DSA `.env` 或 ExternalTool SQLite。
 
 ### 9.3 同步边界
 
-本地自选列表和自动化列表是两个明确作用域，不承诺自动同步：
+DSA 深度分析列表、ExternalTool 本地研究池和自动化研究池是三个明确作用域，不承诺自动同步：
 
-- 本地列表修改立即影响本地研究台；
+- DSA 列表修改立即影响 DSA 原生深度分析，并只在用户显式选择时作为 ExternalTool 本次请求输入；
+- ExternalTool 本地研究池用于更大范围的确定性筛选，不自动把全部标的送入 DSA；
 - 自动化配置只有提交并推送到 ExternalTool 仓库后才影响 Action；
+- ExternalTool 筛选候选是只读派生结果，不自动修改任一列表，也不自动触发 DSA 分析；
 - 第一阶段 UI 提供自动化配置预览/导出和“尚未同步到 Action”的提示，不持有 GitHub Token，不自动 commit/push；
 - 后续若增加 GitHub 同步，必须单独设计权限、审计和冲突处理。
+
+DSA 与 ExternalTool 允许分别获取行情并保留各自的数据源、缓存、配额和失败语义。报告组合器只组合结构化结果，不在两个引擎之间隐式转发行情数据。
 
 ## 10. GitHub Actions
 
@@ -268,9 +272,12 @@ Action 是一次性批处理，不启动 FastAPI 或 React。执行顺序：
 3. 已启用的外部工具研究方法片段；
 4. ExternalTool 其他研究片段；
 5. 自定义 Markdown；
-6. 数据源、截止日、限制和免责声明。
+6. 研究池范围和行情访问用量；
+7. 数据源、截止日、限制和免责声明。
 
 ExternalTool 片段失败采用 fail-open：保留 DSA 原生邮件，在对应位置显示失败摘要。邮件、API Key 和仓库 Token 只从 GitHub Secrets 注入。
+
+ExternalTool 结构化报告必须带 `research_universe` 和 `data_access_usage`。合并邮件在研究片段之后显示研究池数量和各行情渠道的本次访问数、操作明细；渠道提供日额度时同时显示今日累计、日上限和剩余。计量口径必须区分精确渠道请求、第三方客户端逻辑调用和无法可信计数，不得把未知值伪装为零，也不得输出本地计数器路径。
 
 邮件不得新增第二套 SMTP 实现。163 邮箱继续复用 DSA 现有 `EmailSender` 自动识别的 `smtp.163.com:465` SSL 配置，使用 `EMAIL_SENDER`、`EMAIL_PASSWORD`（SMTP 授权码而非网页登录密码）和可选 `EMAIL_RECEIVERS`。GitHub Actions 必须显式映射这些固定变量，其中授权码只能来自 Secret；本地运行只写入未提交的 `.env`。
 

@@ -125,7 +125,7 @@ steps:
 
 实际 workflow 会在安装前校验变量和 checkout 的 `HEAD` 都是同一个完整 SHA。不得使用浮动 `main`/`master`，不得把 Token 插入 `https://<token>@github.com/...`，不得把 `.external/` 上传为 artifact 或缓存。安装完成后，DSA Action 入口直接调用适配层生成结构化片段，再交给 DSA 现有报告组合器和 `EmailSender`。
 
-`full` 是定时任务的默认模式。扩展启用后，DSA 自动走已有合并通知路径，邮件顺序为大盘、个股、已启用研究方法、其他研究片段、自定义 Markdown、数据源与截止日、限制和免责声明。`stocks-only` 会发送个股和扩展片段；显式 `market-only` 只运行大盘复盘，不调用 ExternalTool 每日报告。
+`full` 是定时任务的默认模式。扩展启用后，DSA 自动走已有合并通知路径，邮件顺序为大盘、个股、已启用研究方法、其他研究片段、自定义 Markdown、研究池范围与行情访问用量、数据源与截止日、限制和免责声明。`stocks-only` 会发送个股和扩展片段；显式 `market-only` 只运行大盘复盘，不调用 ExternalTool 每日报告。
 
 private checkout 或安装步骤使用 fail-open：失败时仍继续 DSA 原生分析，合并报告中的“自定义研究”位置会显示脱敏失败摘要，`reports/external-tool/` 会保存失败 JSON/Markdown 供 artifact 排查。DSA 自身分析失败仍按原 workflow 规则报错，不能被扩展降级掩盖。
 

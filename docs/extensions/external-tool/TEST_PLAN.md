@@ -102,7 +102,7 @@ tests/test_external_tool_task_handlers.py
 - 真实 `x/y` 进度与单项失败；
 - 请求取消、超时和重复轮询；
 - 错误码、HTTP 状态和诊断脱敏；
-- DSA 传入自选列表，不读取 ExternalTool watchlist 表；
+- DSA 可传入本次请求列表，但不读取 ExternalTool 研究池表；两者互不隐式同步；
 - 报告片段校验、排序和 fail-open；
 - 未安装扩展时原有 analysis、history、backtest、alerts、settings API 合同不变。
 
@@ -164,6 +164,7 @@ npm run build
 必须覆盖：
 
 - ExternalTool JSON 与 Markdown 由同一结果渲染；
+- 报告展示研究池范围、各行情渠道本次访问和可用日额度，且候选结果不触发 DSA 深度分析；
 - DSA 合并顺序固定；
 - 大盘、个股、已启用研究方法、自定义片段和免责声明齐全；
 - 示例方法片段包含完整数据截止日和算法参数；
