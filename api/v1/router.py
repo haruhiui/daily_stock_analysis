@@ -24,6 +24,7 @@ from api.v1.endpoints import (
     intelligence,
     portfolio,
     stocks,
+    external_tool,
     system_config,
     usage,
 )
@@ -102,6 +103,12 @@ router.include_router(
     alphasift.router,
     prefix="/alphasift",
     tags=["AlphaSift"]
+)
+
+router.include_router(
+    external_tool.router,
+    prefix="/external-tool",
+    tags=["ExternalTool"],
 )
 
 router.include_router(

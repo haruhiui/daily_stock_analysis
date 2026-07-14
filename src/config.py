@@ -736,6 +736,14 @@ class Config:
     alphasift_enabled: bool = False
     alphasift_install_spec: str = DEFAULT_ALPHASIFT_INSTALL_SPEC
 
+    # === Optional external-tool research extension ===
+    external_tool_enabled: bool = False
+    external_tool_data_dir: str = "data/external_tool"
+    external_tool_adapter_module: str = ""
+    external_tool_automation_config: str = "automation/daily-report.yaml"
+    external_tool_contract_min: int = 1
+    external_tool_contract_max: int = 1
+
     # === AI 分析配置 ===
     generation_backend: str = LITELLM_BACKEND_ID
     generation_fallback_backend: str = LITELLM_BACKEND_ID
@@ -2089,6 +2097,37 @@ class Config:
                 DEFAULT_ALPHASIFT_INSTALL_SPEC
                 if os.getenv('ALPHASIFT_INSTALL_SPEC') is None
                 else os.getenv('ALPHASIFT_INSTALL_SPEC', '').strip()
+            ),
+            external_tool_enabled=parse_env_bool(
+                os.getenv('EXTERNAL_TOOL_ENABLED'),
+                default=False,
+            ),
+            external_tool_data_dir=(
+                os.getenv('EXTERNAL_TOOL_DATA_DIR', 'data/external_tool').strip()
+                or 'data/external_tool'
+            ),
+            external_tool_adapter_module=os.getenv(
+                'EXTERNAL_TOOL_ADAPTER_MODULE',
+                '',
+            ).strip(),
+            external_tool_automation_config=(
+                os.getenv(
+                    'EXTERNAL_TOOL_AUTOMATION_CONFIG',
+                    'automation/daily-report.yaml',
+                ).strip()
+                or 'automation/daily-report.yaml'
+            ),
+            external_tool_contract_min=parse_env_int(
+                os.getenv('EXTERNAL_TOOL_CONTRACT_MIN'),
+                1,
+                field_name='EXTERNAL_TOOL_CONTRACT_MIN',
+                minimum=1,
+            ),
+            external_tool_contract_max=parse_env_int(
+                os.getenv('EXTERNAL_TOOL_CONTRACT_MAX'),
+                1,
+                field_name='EXTERNAL_TOOL_CONTRACT_MAX',
+                minimum=1,
             ),
         )
     
