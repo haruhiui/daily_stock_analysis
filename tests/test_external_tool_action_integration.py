@@ -50,7 +50,11 @@ def test_workflow_installs_package_and_maps_report_inputs() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
     setup_action = SETUP_ACTION.read_text(encoding="utf-8")
 
-    assert 'python -m pip install --no-cache-dir "./.external/external-tool/$EXTERNAL_TOOL_PACKAGE_PATH"' in setup_action
+    assert (
+        'python -m pip install --no-cache-dir '
+        '"./.external/external-tool/$EXTERNAL_TOOL_PACKAGE_PATH[data,viz]"'
+        in setup_action
+    )
     assert "EXTERNAL_TOOL_ENABLED: ${{ vars.EXTERNAL_TOOL_ENABLED || 'false' }}" in workflow
     assert "EXTERNAL_TOOL_DATA_DIR: ./data/external-tool" in workflow
     assert "EXTERNAL_TOOL_AUTOMATION_CONFIG:" in workflow

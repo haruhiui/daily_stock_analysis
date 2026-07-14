@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [新功能] 新增 ExternalTool 量化研究台，提供左对齐工具卡、Schema 驱动的通用方法表单、结构化结果和本地每日报告预览。
 - [新功能] 每日 Action 支持以只读 Token 检出 private ExternalTool 固定 commit，并复用 DSA 合并报告与 163 邮件发送；扩展失败时保留原生报告和脱敏 artifact。
 - [改进] ExternalTool 合并报告新增研究池边界和分行情渠道访问/日额度用量，明确筛选候选不会自动触发 DSA 深度分析。
+- [修复] ExternalTool Action 安装时启用 `data,viz` extras，避免缺少 Matplotlib 等行情与报告渲染依赖。
 
 ## [3.26.0] - 2026-07-12
 

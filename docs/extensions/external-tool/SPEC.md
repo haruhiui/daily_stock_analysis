@@ -256,7 +256,7 @@ Action 是一次性批处理，不启动 FastAPI 或 React。执行顺序：
 - DSA 仓库 Secret `EXTERNAL_TOOL_REPO_TOKEN` 保存 fine-grained PAT；Token 只选择外部工具仓库，并仅授予 `Contents: read`，设置有效期和轮换提醒。
 - DSA 仓库 Variable `EXTERNAL_TOOL_REPOSITORY` 保存 `<owner>/<repository>`，不得包含凭据。
 - 第二次 checkout 固定完整 commit SHA、使用 sparse checkout 只取 `EXTERNAL_TOOL_PACKAGE_PATH` 指定的目录、设置独立 `path`，并关闭凭据持久化。
-- 从检出目录执行普通 `pip install`；禁止把 Token 拼进 Git URL、pip 参数、cache key、artifact 或日志。
+- 从检出目录执行带 `data,viz` extras 的普通 `pip install`，确保行情和报告渲染依赖完整；禁止把 Token 拼进 Git URL、pip 参数、cache key、artifact 或日志。
 - workflow 只在受信任的 `schedule`、`workflow_dispatch` 或默认分支事件使用该 Secret，不得在不受信任的 pull request 代码上执行 private checkout。
 - 长期可迁移到权限更易轮换的 GitHub App installation token；迁移不得改变 Python 适配合同。
 - 不允许默认跟随 `master/main` 浮动安装；升级必须显式修改固定 SHA 并通过合同测试。
@@ -287,7 +287,7 @@ ExternalTool 结构化报告必须带 `research_universe` 和 `data_access_usage
 | --- | --- | --- |
 | 本地开发 | `pip install -e "<ExternalTool工作区>[data,viz]"` | 联调和快速迭代 |
 | 本地稳定使用 | 从已检出的固定 commit 普通安装，未来可改用 private wheel | 减少本地漂移 |
-| GitHub Actions | private 仓库固定 SHA 只读 checkout 后普通安装 | 可复现批处理 |
+| GitHub Actions | private 仓库固定 SHA 只读 checkout 后安装 `[data,viz]` extras | 可复现批处理与报告渲染 |
 | DSA 桌面打包 | 明确收集 `external_tool` 包并执行导入探针 | 后续阶段，第一阶段可不包含 |
 
 ExternalTool 是 private 可选依赖，不写入 DSA 基础 `requirements.txt` 的浮动 Git URL。安装由本地部署步骤或隔离 Action setup 显式执行；未来发布 private wheel 时另行评审依赖源和凭据边界。

@@ -16,7 +16,7 @@ adapter = importlib.import_module("<外部工具适配模块>")
 | 环境 | 安装方式 | 运行时调用 | 是否需要端口 |
 | --- | --- | --- | --- |
 | 本地 DSA | 同一虚拟环境执行 editable install | DSA FastAPI 进程直接导入 | 否 |
-| GitHub Actions | 检出 private 仓库固定 commit 后普通安装 | DSA 批处理进程直接导入 | 否 |
+| GitHub Actions | 检出 private 仓库固定 commit 后安装 `[data,viz]` extras | DSA 批处理进程直接导入 | 否 |
 
 不使用 `PYTHONPATH`，不让 DSA 根据环境变量扫描任意源码目录，也不启动第二套 FastAPI。这样本地电脑只需要运行 DSA；电脑关机时，由 GitHub-hosted runner 临时完成同样的安装和调用。
 
@@ -124,6 +124,8 @@ steps:
 ```
 
 实际 workflow 会在安装前校验变量和 checkout 的 `HEAD` 都是同一个完整 SHA。不得使用浮动 `main`/`master`，不得把 Token 插入 `https://<token>@github.com/...`，不得把 `.external/` 上传为 artifact 或缓存。安装完成后，DSA Action 入口直接调用适配层生成结构化片段，再交给 DSA 现有报告组合器和 `EmailSender`。
+
+composite action 使用 `python -m pip install "<检出包>[data,viz]"`，其中 `data` 提供自动化行情源，`viz` 提供 `matplotlib`、`mplfinance` 等报告渲染依赖。只安装基础包会在适配器导入或生成报告时产生 `external_tool_dependency_missing`，不能视为完整安装。
 
 `full` 是定时任务的默认模式。扩展启用后，DSA 自动走已有合并通知路径，邮件顺序为大盘、个股、已启用研究方法、其他研究片段、自定义 Markdown、研究池范围与行情访问用量、数据源与截止日、限制和免责声明。`stocks-only` 会发送个股和扩展片段；显式 `market-only` 只运行大盘复盘，不调用 ExternalTool 每日报告。
 

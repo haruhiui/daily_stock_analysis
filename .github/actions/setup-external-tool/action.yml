@@ -67,5 +67,5 @@ runs:
           echo "::error::外部工具 checkout 与固定 commit 不一致"
           exit 1
         fi
-        python -m pip install --no-cache-dir "./.external/external-tool/$EXTERNAL_TOOL_PACKAGE_PATH"
+        python -m pip install --no-cache-dir "./.external/external-tool/$EXTERNAL_TOOL_PACKAGE_PATH[data,viz]"
         python -c "import importlib, os; module = importlib.import_module(os.environ['EXTERNAL_TOOL_IMPORT_MODULE']); print(module.get_status())"
