@@ -3,9 +3,13 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
+import hashlib
 from typing import Any, Dict, Optional
+from urllib.parse import quote
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel, Field
 
 from api.deps import get_config_dep
@@ -74,6 +78,77 @@ def external_tool_methods(config: Config = Depends(get_config_dep)) -> Dict[str,
         return _service(config).methods()
     except ExternalToolExtensionError as exc:
         _raise_extension_error(exc)
+
+
+@router.get("/watchlists")
+def external_tool_watchlists(config: Config = Depends(get_config_dep)) -> Dict[str, Any]:
+    try:
+        return _service(config).watchlists()
+    except ExternalToolExtensionError as exc:
+        _raise_extension_error(exc)
+
+
+@router.get("/formulas/catalog")
+def external_tool_formula_catalog(config: Config = Depends(get_config_dep)) -> Dict[str, Any]:
+    try:
+        return _service(config).formula_catalog()
+    except ExternalToolExtensionError as exc:
+        _raise_extension_error(exc)
+
+
+@router.get("/surfaces/{surface_id}")
+def external_tool_surface_manifest(
+    surface_id: str,
+    config: Config = Depends(get_config_dep),
+) -> Dict[str, Any]:
+    try:
+        manifest = _service(config).surface_manifest(surface_id)
+    except ExternalToolExtensionError as exc:
+        _raise_extension_error(exc)
+    encoded_surface = quote(surface_id, safe="")
+    asset_prefix = f"/api/v1/external-tool/surfaces/{encoded_surface}/assets"
+    return {
+        "surface_contract_version": manifest["surface_contract_version"],
+        "surface_id": manifest["surface_id"],
+        "entry_url": f"{asset_prefix}/{quote(manifest['entry_asset'], safe='')}",
+        "stylesheet_urls": [
+            f"{asset_prefix}/{quote(asset, safe='')}"
+            for asset in manifest["stylesheet_assets"]
+        ],
+    }
+
+
+@router.get("/surfaces/{surface_id}/assets/{asset_path:path}")
+def external_tool_surface_asset(
+    surface_id: str,
+    asset_path: str,
+    config: Config = Depends(get_config_dep),
+) -> Response:
+    try:
+        payload = _service(config).surface_asset(surface_id, asset_path)
+        content = base64.b64decode(payload["content_base64"], validate=True)
+    except (binascii.Error, ValueError, KeyError) as exc:
+        _raise_extension_error(
+            ExternalToolExtensionError(
+                "external_tool_invalid_response",
+                "ExternalTool 托管页面资源编码无效",
+            )
+        )
+    except ExternalToolExtensionError as exc:
+        _raise_extension_error(exc)
+    digest = hashlib.sha256(content).hexdigest()
+    if digest != payload["sha256"]:
+        _raise_extension_error(
+            ExternalToolExtensionError(
+                "external_tool_invalid_response",
+                "ExternalTool 托管页面资源校验失败",
+            )
+        )
+    return Response(
+        content=content,
+        media_type=payload["media_type"],
+        headers={"Cache-Control": "no-cache", "ETag": f'"{digest}"'},
+    )
 
 
 @router.get("/methods/{method_id}/schema")

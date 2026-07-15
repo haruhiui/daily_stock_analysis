@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import hashlib
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -29,12 +31,37 @@ def _adapter(*, contract_version: int = 1):
             "available": True,
             "contract_version": contract_version,
             "engine_version": "test",
-            "capabilities": ["research_methods", "daily_report"],
+            "capabilities": ["research_methods", "daily_report", "hosted_surfaces", "formula_canvas"],
         },
         list_research_methods=lambda: methods,
         get_research_method_schema=lambda method_id: next(
             item for item in methods if item["method_id"] == method_id
         ),
+        get_formula_catalog=lambda: {
+            "presets": [{"id": "sample"}],
+            "functions": [{"name": "plot", "category": "绘图函数"}],
+            "syntax_notes": ["script"],
+        },
+        get_watchlists=lambda: {
+            "contract_version": contract_version,
+            "watchlist_count": 1,
+            "item_count": 1,
+            "default_watchlist_id": 1,
+            "watchlists": [{"id": 1, "name": "关注标的", "item_count": 1, "items": []}],
+        },
+        get_hosted_surface_manifest=lambda surface_id: {
+            "surface_contract_version": 1,
+            "surface_id": surface_id,
+            "entry_asset": "research-surface.js",
+            "stylesheet_assets": ["research-surface.css"],
+        },
+        get_hosted_surface_asset=lambda surface_id, asset_path: {
+            "surface_id": surface_id,
+            "asset_path": asset_path,
+            "media_type": "text/javascript",
+            "sha256": hashlib.sha256(b"export const ready = true").hexdigest(),
+            "content_base64": base64.b64encode(b"export const ready = true").decode("ascii"),
+        },
         run_research_method=lambda method_id, request, progress_callback=None: {
             "method_id": method_id,
             "result": request,
@@ -86,6 +113,57 @@ def test_generic_method_discovery_handles_second_method_without_router_changes()
         executed = service.run_method("second", {"symbols": ["TEST"]})
     assert [item["method_id"] for item in result["methods"]] == ["first", "second"]
     assert executed["method_id"] == "second"
+
+
+def test_formula_catalog_is_loaded_from_adapter() -> None:
+    with patch("src.extensions.external_tool.loader.importlib.import_module", return_value=_adapter()):
+        result = ExternalToolService(_config()).formula_catalog()
+
+    assert result["functions"][0]["name"] == "plot"
+
+
+def test_watchlists_require_declared_optional_capability() -> None:
+    adapter = _adapter()
+    original_status = adapter.get_status
+    adapter.get_status = lambda: {**original_status(), "capabilities": ["research_methods", "daily_report", "watchlists"]}
+    with patch("src.extensions.external_tool.loader.importlib.import_module", return_value=adapter):
+        result = ExternalToolService(_config()).watchlists()
+
+    assert result["default_watchlist_id"] == 1
+
+
+def test_watchlists_reject_adapter_without_declared_capability() -> None:
+    with patch("src.extensions.external_tool.loader.importlib.import_module", return_value=_adapter()):
+        with pytest.raises(ExternalToolExtensionError) as captured:
+            ExternalToolService(_config()).watchlists()
+
+    assert captured.value.code == "external_tool_capability_not_found"
+    assert captured.value.status_code == 404
+
+
+def test_hosted_surface_manifest_and_asset_are_validated() -> None:
+    with patch("src.extensions.external_tool.loader.importlib.import_module", return_value=_adapter()):
+        service = ExternalToolService(_config())
+        manifest = service.surface_manifest("research")
+        asset = service.surface_asset("research", manifest["entry_asset"])
+
+    assert manifest["entry_asset"] == "research-surface.js"
+    assert asset["media_type"] == "text/javascript"
+
+
+def test_hosted_surface_rejects_nested_asset_names_in_manifest() -> None:
+    adapter = _adapter()
+    adapter.get_hosted_surface_manifest = lambda surface_id: {
+        "surface_contract_version": 1,
+        "surface_id": surface_id,
+        "entry_asset": "../private.js",
+        "stylesheet_assets": [],
+    }
+    with patch("src.extensions.external_tool.loader.importlib.import_module", return_value=adapter):
+        with pytest.raises(ExternalToolExtensionError) as captured:
+            ExternalToolService(_config()).surface_manifest("research")
+
+    assert captured.value.code == "external_tool_invalid_response"
 
 
 def test_capability_dispatch_rejects_unknown_capability() -> None:

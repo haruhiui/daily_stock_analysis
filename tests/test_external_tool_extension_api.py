@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import hashlib
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -33,10 +35,40 @@ def _adapter():
             "available": True,
             "contract_version": 1,
             "engine_version": "test",
-            "capabilities": ["research_methods", "formula_canvas"],
+            "capabilities": ["research_methods", "formula_canvas", "hosted_surfaces"],
         },
         list_research_methods=lambda: [descriptor],
         get_research_method_schema=lambda method_id: descriptor,
+        get_formula_catalog=lambda: {
+            "presets": [{"id": "sample"}],
+            "functions": [{"name": "plot", "category": "绘图函数"}],
+            "syntax_notes": ["script"],
+        },
+        get_watchlists=lambda: {
+            "contract_version": 1,
+            "watchlist_count": 1,
+            "item_count": 1,
+            "default_watchlist_id": 7,
+            "watchlists": [{
+                "id": 7,
+                "name": "关注标的",
+                "item_count": 1,
+                "items": [{"id": 11, "symbol": "000001", "name": "上证指数", "latest_date": "2026-07-14"}],
+            }],
+        },
+        get_hosted_surface_manifest=lambda surface_id: {
+            "surface_contract_version": 1,
+            "surface_id": surface_id,
+            "entry_asset": "research-surface.js",
+            "stylesheet_assets": ["research-surface.css"],
+        },
+        get_hosted_surface_asset=lambda surface_id, asset_path: {
+            "surface_id": surface_id,
+            "asset_path": asset_path,
+            "media_type": "text/javascript",
+            "sha256": hashlib.sha256(b"export const ready = true").hexdigest(),
+            "content_base64": base64.b64encode(b"export const ready = true").decode("ascii"),
+        },
         run_research_method=lambda method_id, request, progress_callback=None: {"method_id": method_id},
         run_formula=lambda request: {"capability": "formula"},
         run_market_indicators=lambda request: {"capability": "market"},
@@ -59,10 +91,51 @@ def test_status_and_generic_method_endpoints() -> None:
         status = client.get("/api/v1/external-tool/status")
         methods = client.get("/api/v1/external-tool/methods")
         schema = client.get("/api/v1/external-tool/methods/example/schema")
+        formula_catalog = client.get("/api/v1/external-tool/formulas/catalog")
     assert status.status_code == 200
     assert status.json()["state"] == "available"
     assert methods.json()["methods"][0]["method_id"] == "example"
     assert schema.json()["method_id"] == "example"
+    assert formula_catalog.json()["functions"][0]["name"] == "plot"
+
+
+def test_watchlists_endpoint_uses_optional_adapter_capability() -> None:
+    adapter = _adapter()
+    original_status = adapter.get_status
+    adapter.get_status = lambda: {**original_status(), "capabilities": ["research_methods", "watchlists"]}
+    with patch("src.extensions.external_tool.loader.importlib.import_module", return_value=adapter):
+        response = _client().get("/api/v1/external-tool/watchlists")
+
+    assert response.status_code == 200
+    assert response.json()["default_watchlist_id"] == 7
+    assert response.json()["watchlists"][0]["items"][0]["latest_date"] == "2026-07-14"
+
+
+def test_hosted_surface_manifest_exposes_same_origin_asset_urls() -> None:
+    with patch("src.extensions.external_tool.loader.importlib.import_module", return_value=_adapter()):
+        response = _client().get("/api/v1/external-tool/surfaces/research")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "surface_contract_version": 1,
+        "surface_id": "research",
+        "entry_url": "/api/v1/external-tool/surfaces/research/assets/research-surface.js",
+        "stylesheet_urls": [
+            "/api/v1/external-tool/surfaces/research/assets/research-surface.css"
+        ],
+    }
+
+
+def test_hosted_surface_asset_is_verified_and_served() -> None:
+    with patch("src.extensions.external_tool.loader.importlib.import_module", return_value=_adapter()):
+        response = _client().get(
+            "/api/v1/external-tool/surfaces/research/assets/research-surface.js"
+        )
+
+    assert response.status_code == 200
+    assert response.content == b"export const ready = true"
+    assert response.headers["content-type"].startswith("text/javascript")
+    assert response.headers["etag"]
 
 
 def test_disabled_capability_returns_stable_error() -> None:

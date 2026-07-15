@@ -44,6 +44,65 @@ class ExternalToolService:
             )
         return {"methods": result, "method_count": len(result)}
 
+    def formula_catalog(self) -> Dict[str, Any]:
+        self._require_capability("formula_canvas", "当前 ExternalTool 版本不支持公式画布")
+        result = self._dict_result(self._call("get_formula_catalog"))
+        if not isinstance(result.get("functions"), list) or not isinstance(result.get("presets"), list):
+            raise ExternalToolExtensionError(
+                "external_tool_invalid_response",
+                "ExternalTool 公式目录格式无效",
+            )
+        return result
+
+    def watchlists(self) -> Dict[str, Any]:
+        status = self._require_available_status()
+        if "watchlists" not in set(status.get("capabilities") or []):
+            raise ExternalToolExtensionError(
+                "external_tool_capability_not_found",
+                "当前 ExternalTool 版本不支持自选列表",
+                status_code=404,
+            )
+        result = self._dict_result(self._call("get_watchlists"))
+        if not isinstance(result.get("watchlists"), list):
+            raise ExternalToolExtensionError(
+                "external_tool_invalid_response",
+                "ExternalTool 自选列表格式无效",
+            )
+        return result
+
+    def surface_manifest(self, surface_id: str) -> Dict[str, Any]:
+        self._require_capability("hosted_surfaces", "当前 ExternalTool 版本不支持托管页面")
+        result = self._dict_result(self._call("get_hosted_surface_manifest", surface_id))
+        entry_asset = result.get("entry_asset")
+        stylesheets = result.get("stylesheet_assets")
+        if (
+            result.get("surface_id") != surface_id
+            or not self._is_asset_name(entry_asset)
+            or not isinstance(stylesheets, list)
+            or any(not self._is_asset_name(item) for item in stylesheets)
+        ):
+            raise ExternalToolExtensionError(
+                "external_tool_invalid_response",
+                "ExternalTool 托管页面清单格式无效",
+            )
+        return result
+
+    def surface_asset(self, surface_id: str, asset_path: str) -> Dict[str, Any]:
+        self._require_capability("hosted_surfaces", "当前 ExternalTool 版本不支持托管页面")
+        result = self._dict_result(self._call("get_hosted_surface_asset", surface_id, asset_path))
+        if (
+            result.get("surface_id") != surface_id
+            or result.get("asset_path") != asset_path
+            or not isinstance(result.get("content_base64"), str)
+            or not isinstance(result.get("media_type"), str)
+            or not isinstance(result.get("sha256"), str)
+        ):
+            raise ExternalToolExtensionError(
+                "external_tool_invalid_response",
+                "ExternalTool 托管页面资源格式无效",
+            )
+        return result
+
     def method_schema(self, method_id: str) -> Dict[str, Any]:
         result = self._call("get_research_method_schema", method_id)
         if not isinstance(result, dict):
@@ -90,6 +149,16 @@ class ExternalToolService:
             )
         return status
 
+    def _require_capability(self, capability: str, message: str) -> Dict[str, Any]:
+        status = self._require_available_status()
+        if capability not in set(status.get("capabilities") or []):
+            raise ExternalToolExtensionError(
+                "external_tool_capability_not_found",
+                message,
+                status_code=404,
+            )
+        return status
+
     def _call(self, function_name: str, *args, **kwargs):
         try:
             adapter = self.loader.load()
@@ -107,3 +176,13 @@ class ExternalToolService:
                 "ExternalTool 执行结果格式无效",
             )
         return result
+
+    @staticmethod
+    def _is_asset_name(value: Any) -> bool:
+        return (
+            isinstance(value, str)
+            and bool(value)
+            and "/" not in value
+            and "\\" not in value
+            and value not in {".", ".."}
+        )

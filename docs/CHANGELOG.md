@@ -16,10 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 <!-- 新条目格式：- [类型] 描述（类型取值：新功能/改进/修复/文档/测试/chore）-->
 <!-- 每条独立一行追加到本段末尾，无需分类标题，合并时冲突最小 -->
 - [新功能] 新增默认关闭的 ExternalTool 隔离扩展、通用研究方法 API 和后台任务生命周期，缺少私有引擎时不影响 DSA 原有功能。
-- [新功能] 新增 ExternalTool 量化研究台，提供左对齐工具卡、Schema 驱动的通用方法表单、结构化结果和本地每日报告预览。
+- [新功能] 新增 ExternalTool 量化研究台，并改为加载外部工具自带的托管页面；DSA 仅保留通用同源资源桥接和页面宿主，避免两仓库维护两份研究 UI。
 - [新功能] 每日 Action 支持以只读 Token 检出 private ExternalTool 固定 commit，并复用 DSA 合并报告与 163 邮件发送；扩展失败时保留原生报告和脱敏 artifact。
 - [改进] ExternalTool 合并报告新增研究池边界和分行情渠道访问/日额度用量，明确筛选候选不会自动触发 DSA 深度分析。
 - [修复] ExternalTool Action 安装时启用 `data,viz` extras，避免缺少 Matplotlib 等行情与报告渲染依赖。
+- [改进] ExternalTool 研究台顶部新增只读研究自选列表，展示标的类型、标签和数据库最新日期，并可将所选标的带入下方研究工具。
+- [改进] ExternalTool 托管页面使用 Shadow DOM 隔离样式，并同步宿主的浅色/深色主题、界面语言和导航回调；旧 DSA 研究台页面实现已删除。
+- [改进] ExternalTool 公式画布收敛为脚本工作区，新增分类函数速查和折线、柱状、多子图及 K 线渲染；哈奇计划法可先读本地库并补齐回写缺失行情。
 
 ## [3.26.0] - 2026-07-12
 

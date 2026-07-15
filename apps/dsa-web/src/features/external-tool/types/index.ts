@@ -12,54 +12,9 @@ export type ExternalToolStatus = {
   diagnostics?: Record<string, unknown>;
 };
 
-export type JsonSchema = {
-  type?: string;
-  title?: string;
-  description?: string;
-  default?: unknown;
-  format?: string;
-  enum?: Array<string | number>;
-  minimum?: number;
-  maximum?: number;
-  exclusiveMinimum?: number;
-  minItems?: number;
-  items?: JsonSchema;
-  required?: string[];
-  properties?: Record<string, JsonSchema>;
+export type HostedSurfaceManifest = {
+  surfaceContractVersion: number;
+  surfaceId: string;
+  entryUrl: string;
+  stylesheetUrls: string[];
 };
-
-export type ResearchMethod = {
-  methodId: string;
-  methodVersion: number;
-  title: string;
-  description?: string;
-  inputSchema: JsonSchema;
-  outputViews: string[];
-  supportsBatchSymbols?: boolean;
-};
-
-export type ResearchMethodsResponse = {
-  methods: ResearchMethod[];
-  methodCount: number;
-};
-
-export type ExternalToolTaskAccepted = {
-  taskId: string;
-  traceId: string;
-  status: string;
-  progress: number;
-  message?: string;
-};
-
-export type ExternalToolTaskStatus = ExternalToolTaskAccepted & {
-  error?: string | null;
-  result?: Record<string, unknown> | null;
-};
-
-export type ResearchToolId =
-  | 'formula'
-  | 'market_indicators'
-  | 'grid'
-  | 'methods'
-  | 'backtest'
-  | 'daily_report';
